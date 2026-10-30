@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="一间关于色彩的独立工作室。选择、发现、收藏与导出你的下一组配色。离线可用。">
+  <title>CHROMA — 色彩实验室</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2375689b'/%3E%3Ccircle cx='13' cy='13' r='8' fill='%23e9dfcd'/%3E%3Ccircle cx='20' cy='20' r='8' fill='%23d0ccdf'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 6h3c5 0 7 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 3-2 4-4m4-4c1-2 2-4 4-4h3m-4-4 4 4-4 4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 6a8 8 0 0 1 13 2l1 4M4 12l1 4a8 8 0 0 0 13 2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V3H3v13h5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="m12 21-8-8C-3 6 7-1 12 6c5-7 15 0 8 7Z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m6-16v16"/></symbol>
+    <symbol id="i-type" viewBox="0 0 24 24"><path d="m3 20 7-16 7 16M6 14h8m3-5h4m-2 0v11"/></symbol>
+    <symbol id="i-gradient" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 7v10m4-10v10m4-10v10m3-10v10"/></symbol>
+    <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 19 19 5M5 5h14v14"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  </svg>
+
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="CHROMA 色彩实验室首页">
+      <span class="brand-mark"><i></i><i></i><i></i><i></i></span>
+      <span class="brand-word">chroma<span class="brand-dot">.</span></span>
+      <span class="brand-caption">色彩实验室</span>
+    </a>
+    <nav class="primary-nav" aria-label="主导航">
+      <button class="nav-item active" data-page="explore">探索配色</button>
+      <button class="nav-item" data-page="favorites">我的收藏 <span id="favorite-count">0</span></button>
+    </nav>
+    <div class="header-actions">
+      <span class="offline-status"><i></i> 灵感，随时在线</span>
+      <button id="help-button" class="icon-button" aria-label="使用说明" title="使用说明"><svg><use href="#i-info"/></svg></button>
+      <span class="header-divider"></span>
+      <button id="theme-button" class="icon-button" aria-label="切换为暗色模式" title="切换明暗模式"><svg><use href="#i-moon"/></svg></button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" aria-label="选色面板">
+      <div class="sidebar-heading"><span class="eyebrow">01 / YOUR STARTING POINT</span><span class="tiny-cross">+</span></div>
+      <div class="section-title"><h2>从一个颜色开始</h2><button id="random-color" class="icon-button small" aria-label="随机基准色" title="随机基准色"><svg><use href="#i-shuffle"/></svg></button></div>
+      <div class="picker-tabs segmented" role="tablist" aria-label="选色模式">
+        <button id="tab-wheel" class="active" role="tab" aria-selected="true" aria-controls="picker-panel" data-picker="wheel">色轮</button>
+        <button id="tab-rgb" role="tab" aria-selected="false" aria-controls="picker-panel" data-picker="rgb">RGB</button>
+        <button id="tab-cmyk" role="tab" aria-selected="false" aria-controls="picker-panel" data-picker="cmyk">CMYK</button>
+        <button id="tab-hsv" role="tab" aria-selected="false" aria-controls="picker-panel" data-picker="hsv">HSB</button>
+      </div>
+      <div id="picker-panel" role="tabpanel" aria-labelledby="tab-wheel">
+        <div id="wheel-panel">
+          <div class="wheel-wrap">
+            <canvas id="hue-wheel" width="480" height="480" role="slider" tabindex="0" aria-label="色相，方向键调整" aria-valuemin="0" aria-valuemax="360" aria-valuenow="257"></canvas>
+            <span id="hue-marker" class="hue-marker"></span>
+            <div id="sv-square" class="sv-square" role="group" aria-label="饱和度与明度平面"><span id="sv-marker" class="sv-marker"></span></div>
+            <span class="wheel-note">360° COLOR WHEEL</span>
+          </div>
+          <div class="hsb-summary"><span>H <b id="summary-h">257°</b></span><span>S <b id="summary-s">33%</b></span><span>B <b id="summary-b">61%</b></span></div>
+        </div>
+        <div id="channel-panel" class="channel-panel" hidden></div>
+      </div>
+      <div class="hex-control">
+        <div class="native-color-wrap"><input id="native-color" type="color" value="#75689b" aria-label="系统颜色选择器"></div>
+        <label class="hex-label" for="hex-input">HEX</label>
+        <input id="hex-input" type="text" value="#75689B" maxlength="7" spellcheck="false" aria-label="HEX 颜色值" aria-describedby="hex-error">
+        <button id="copy-base" class="icon-button small" aria-label="复制基准色"><svg><use href="#i-copy"/></svg></button>
+      </div>
+      <div id="hex-error" class="input-error" role="status"></div>
+      <label class="switch-row" for="lock-base"><span>保留基准色 <span class="hint-dot" title="生成的每组配色中都包含当前颜色">i</span></span><input id="lock-base" type="checkbox" role="switch" checked><span class="switch"></span></label>
+      <div class="sidebar-rule"></div>
+      <div class="sidebar-heading"><span class="eyebrow">02 / COLOR CONNECTIONS</span><span class="tiny-cross">+</span></div>
+      <h2 class="relationship-title">发现色彩的关系</h2>
+      <div class="relation-tabs" role="group" aria-label="关联色类型">
+        <button class="active" data-relation="analogous" aria-pressed="true">邻近</button><button data-relation="complement" aria-pressed="false">互补</button><button data-relation="triadic" aria-pressed="false">三角</button><button data-relation="tonal" aria-pressed="false">明暗</button>
+      </div>
+      <div id="related-colors" class="related-colors"></div>
+      <p id="relation-description" class="relation-description"></p>
+      <p class="micro-note">点击色块，开启新的色彩探索 <span>↗</span></p>
+      <div class="sidebar-bottom"><span class="sidebar-bottom-mark">C.</span><p>色彩没有标准答案。<br>让直觉，也参与设计。</p></div>
+    </aside>
+
+    <main>
+      <section class="intro">
+        <div><div class="eyebrow intro-eyebrow"><span class="small-line"></span> A LITTLE SCIENCE. A LOT OF FEELING.</div><h1 id="page-title">让色彩，<span>恰好相遇。</span></h1><p id="page-description">从一抹灵感出发，探索属于你的色彩秩序。</p></div>
+        <div class="intro-art" aria-hidden="true"><div></div><div></div><div></div><span>THE ART OF<br>BEING TOGETHER.</span></div>
+      </section>
+
+      <section class="generator-controls" aria-label="配色生成设置">
+        <div class="control-row"><span class="control-label">色彩数量</span><div class="count-options segmented" role="group" aria-label="色彩数量"><button data-count="2" aria-pressed="false">双色</button><button data-count="3" aria-pressed="false">三色</button><button data-count="4" aria-pressed="false">四色</button><button class="active" data-count="5" aria-pressed="true">五色</button><button data-count="6" aria-pressed="false">系列 <small>6</small></button></div><div class="rule-select-wrap"><label for="harmony-select">色彩关系</label><select id="harmony-select"><option value="auto">自然推荐</option><option value="analogous">邻近色</option><option value="complement">互补色</option><option value="split">分裂互补</option><option value="triadic">三等分</option><option value="tetradic">四等分</option><option value="mono">单色系</option></select></div></div>
+        <div class="control-row effects-row"><span class="control-label">配色气质</span><div class="effect-options" role="group" aria-label="配色效果"><button data-effect="harmony" class="active" aria-pressed="true"><i class="effect-dot harmony"></i>和谐</button><button data-effect="impact" aria-pressed="false"><i class="effect-dot impact"></i>冲击</button><button data-effect="muted" aria-pressed="false"><i class="effect-dot muted"></i>低饱和</button><button data-effect="vivid" aria-pressed="false"><i class="effect-dot vivid"></i>高饱和</button><button data-effect="dark" aria-pressed="false"><i class="effect-dot dark"></i>暗调</button><button data-effect="light" aria-pressed="false"><i class="effect-dot light"></i>亮调</button><button data-effect="warm" aria-pressed="false" title="米杏、赭橙与暖红，保留锁定的基准色"><i class="effect-dot warm"></i>暖调</button><button data-effect="cool" aria-pressed="false" title="青蓝与灰紫，保留锁定的基准色"><i class="effect-dot cool"></i>冷调</button></div></div>
+      </section>
+
+      <div class="gallery-toolbar">
+        <div class="view-options" role="group" aria-label="配色预览样式">
+          <button class="active" data-view="mixed" aria-pressed="true" title="灵感预览"><svg><use href="#i-grid"/></svg><span>灵感</span></button>
+          <button data-view="palette" aria-pressed="false" title="色卡预览"><svg><use href="#i-palette"/></svg><span>色卡</span></button>
+          <button data-view="type" aria-pressed="false" title="排版预览"><svg><use href="#i-type"/></svg><span>排版</span></button>
+          <button data-view="gradient" aria-pressed="false" title="渐变预览"><svg><use href="#i-gradient"/></svg><span>渐变</span></button>
+          <button data-view="ui" aria-pressed="false" title="界面预览"><svg><use href="#i-layout"/></svg><span>界面</span></button>
+        </div>
+        <div class="gallery-actions"><button id="export-button" class="text-button" title="导出当前配色"><svg><use href="#i-download"/></svg><span>导出</span></button><span class="toolbar-divider"></span><button id="generate-button" class="generate-button"><svg><use href="#i-refresh"/></svg>换一组 <kbd>Space</kbd></button></div>
+      </div>
+      <div class="collection-heading"><span id="collection-description">为你发现的 12 组配色</span><span id="generation-label">CURATED BY COLOR, MADE FOR YOU.</span></div>
+      <section id="palette-grid" class="palette-grid" aria-label="推荐配色"></section>
+      <div id="empty-state" class="empty-state" hidden><svg><use href="#i-heart"/></svg><h2>给喜欢的色彩，留一个位置。</h2><p>点击配色卡片上的爱心，即可收藏到这里。</p><button id="back-explore" class="primary-button">去发现配色 <span>↗</span></button></div>
+      <button id="load-more" class="load-more">再发现 12 组 <span>↓</span></button>
+      <footer class="main-footer"><span>CHROMA / 色彩实验室</span><span>用一点秩序，留很多可能。</span><span>本地运行 · 自由创作</span></footer>
+    </main>
+  </div>
+
+  <dialog id="palette-dialog" class="palette-dialog" aria-labelledby="detail-name">
+    <div class="dialog-heading"><div><span class="eyebrow">A CLOSER LOOK</span><h2 id="detail-name">配色详情</h2></div><button class="icon-button close-dialog" aria-label="关闭配色详情"><svg><use href="#i-close"/></svg></button></div>
+    <div id="detail-preview" class="detail-preview"></div>
+    <div class="detail-section-heading"><h3>你的色彩配方</h3><span>点击色值复制 · 点击箭头设为基准色</span></div>
+    <div id="detail-colors" class="detail-colors"></div>
+    <section class="contrast-section" aria-label="文字对比度检查"><div class="contrast-heading"><h3>让美感，也清晰可读。</h3><span>WCAG 2.2 / sRGB</span></div><div class="contrast-controls"><label>文字色<select id="contrast-foreground"></select></label><button id="swap-contrast" class="icon-button small" aria-label="交换文字色和背景色"><svg><use href="#i-shuffle"/></svg></button><label>背景色<select id="contrast-background"></select></label></div><div class="contrast-result"><div id="contrast-example"><strong>Aa 文字示例</strong><span>Good colors speak clearly.</span></div><div class="contrast-score"><strong id="contrast-ratio"></strong><div id="contrast-badges"></div></div></div><p class="contrast-note">普通文字 AA ≥ 4.5:1，AAA ≥ 7:1；大字 AA ≥ 3:1。界面预览仅演示配色，请以实际文字色和背景色检查。</p></section>
+    <div class="dialog-actions"><button id="detail-save" class="secondary-button"><svg><use href="#i-heart"/></svg>收藏配色</button><div><button id="detail-copy" class="secondary-button"><svg><use href="#i-copy"/></svg>复制色值</button><button id="detail-svg" class="primary-button"><svg><use href="#i-download"/></svg>导出 SVG</button></div></div>
+  </dialog>
+
+  <dialog id="export-dialog" class="export-dialog" aria-labelledby="export-title"><div class="dialog-heading"><div><span class="eyebrow">TAKE YOUR COLORS WITH YOU</span><h2 id="export-title">把灵感带走</h2></div><button class="icon-button close-dialog" aria-label="关闭导出"><svg><use href="#i-close"/></svg></button></div><p id="export-description"></p><div class="export-options segmented" role="group" aria-label="导出格式"><button data-format="css" class="active" aria-pressed="true">CSS 变量</button><button data-format="json" aria-pressed="false">JSON</button><button data-format="svg" aria-pressed="false">SVG 色卡</button></div><pre id="export-preview" tabindex="0"></pre><div class="dialog-actions"><span id="export-file-label" class="mono"></span><div><button id="copy-export" class="secondary-button"><svg><use href="#i-copy"/></svg>复制</button><button id="download-export" class="primary-button"><svg><use href="#i-download"/></svg>下载文件</button></div></div></dialog>
+
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">A SMALL GUIDE</span><h2 id="help-title">好配色，从探索开始。</h2></div><button class="icon-button close-dialog" aria-label="关闭使用说明"><svg><use href="#i-close"/></svg></button></div><div class="help-content"><p><b>01 / 定义一种颜色</b>拖动色轮选择色相，在中心方块选择饱和度和明度；也可以输入 HEX，或切换 RGB、CMYK、HSB 数值。色轮支持方向键，HSB 与 HSV 含义相同。</p><p><b>02 / 决定相处的方式</b>选择 2–6 种颜色、色彩关系和配色气质。打开「保留基准色」，每组配色都会包含这个准确色值；其他颜色随气质变化。关闭后，基准色也会随风格微调。</p><p><b>03 / 放进真实的设计里</b>切换色卡、排版、渐变、界面预览。点击预览查看所有色值与文字对比度，点击小色块直接复制 HEX。按空格换一组，按 Esc 关闭弹窗。</p><p><b>04 / 带走你的灵感</b>收藏保存在当前浏览器中，可导出 CSS、JSON 或 SVG。清理浏览器数据会移除收藏，建议导出留存。所有功能离线可用，不上传数据。</p><p class="help-footnote">CMYK 为无 ICC 色彩配置的屏幕近似换算；印刷前请根据纸张、油墨与印刷配置打样。推荐由色彩关系与明暗、饱和度规则生成，视觉预览帮助你做最后的判断。</p></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"><svg><use href="#i-check"/></svg><span></span></div>
+  <script src="color-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
