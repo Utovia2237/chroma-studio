@@ -4,6 +4,8 @@
 
 在线使用：[打开色彩实验室](https://utovia2237.github.io/chroma-studio/)。离线时也可双击 **`色彩实验室.html`** 或打开 **`index.html`**。工具无需后端、API 密钥或依赖安装。
 
+本项目由作者与 OpenAI Codex 协作完成。作者负责产品方向、视觉目标与功能取舍；Codex 协助完成界面、色彩算法、离线构建、测试验证与 GitHub Pages 发布。
+
 ## 打开
 
 双击 **`色彩实验室.html`** 即可使用，可以把这个文件单独复制到其他位置。不需要安装依赖、联网或启动服务器。建议使用近期版本的 Microsoft Edge、Chrome、Firefox 或 Safari。
@@ -54,6 +56,6 @@ node --check .\color-engine.js
 node --check .\app.js
 ```
 
-文件职责和维护约束见 `AGENTS.md`。无需 npm install。修改源文件后重新生成单文件版。
+无需 npm install。修改源文件后重新生成单文件版。
 
 配色预览的呈现形式参考了 [Khroma Generator](https://www.khroma.co/generator)；界面、图形、代码与推荐算法均在本项目中独立实现。
