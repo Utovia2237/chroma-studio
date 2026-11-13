@@ -37,6 +37,7 @@
     </a>
     <nav class="primary-nav" aria-label="主导航">
       <button class="nav-item active" data-page="explore">探索配色</button>
+      <button class="nav-item" data-page="custom">自主配色</button>
       <button class="nav-item" data-page="favorites">我的收藏 <span id="favorite-count">0</span></button>
     </nav>
     <div class="header-actions">
@@ -50,7 +51,7 @@
   <div class="workspace">
     <aside class="sidebar" aria-label="选色面板">
       <div class="sidebar-heading"><span class="eyebrow">01 / YOUR STARTING POINT</span><span class="tiny-cross">+</span></div>
-      <div class="section-title"><h2>从一个颜色开始</h2><button id="random-color" class="icon-button small" aria-label="随机基准色" title="随机基准色"><svg><use href="#i-shuffle"/></svg></button></div>
+      <div class="section-title"><h2 id="picker-title">从一个颜色开始</h2><button id="random-color" class="icon-button small" aria-label="随机基准色" title="随机基准色"><svg><use href="#i-shuffle"/></svg></button></div>
       <div class="picker-tabs segmented" role="tablist" aria-label="选色模式">
         <button id="tab-wheel" class="active" role="tab" aria-selected="true" aria-controls="picker-panel" data-picker="wheel">色轮</button>
         <button id="tab-rgb" role="tab" aria-selected="false" aria-controls="picker-panel" data-picker="rgb">RGB</button>
@@ -97,6 +98,8 @@
 
       <section class="generator-controls" aria-label="配色生成设置">
         <div class="control-row"><span class="control-label">色彩数量</span><div class="count-options segmented" role="group" aria-label="色彩数量"><button data-count="2" aria-pressed="false">双色</button><button data-count="3" aria-pressed="false">三色</button><button data-count="4" aria-pressed="false">四色</button><button class="active" data-count="5" aria-pressed="true">五色</button><button data-count="6" aria-pressed="false">系列 <small>6</small></button></div><div class="rule-select-wrap"><label for="harmony-select">色彩关系</label><select id="harmony-select"><option value="auto">自然推荐</option><option value="analogous">邻近色</option><option value="complement">互补色</option><option value="split">分裂互补</option><option value="triadic">三等分</option><option value="tetradic">四等分</option><option value="mono">单色系</option></select></div></div>
+
+        <div id="custom-controls" hidden><div class="custom-heading"><span class="control-label">指定颜色</span><span id="custom-editing" role="status">正在编辑颜色 1</span></div><div id="custom-colors" class="custom-colors" role="group" aria-label="选择要编辑的颜色"></div><p id="custom-order-hint" class="custom-order-hint">拖动交换顺序，减少颜色时保留前几色。也可用 Alt + ← / → 调整。</p></div>
         <div class="control-row effects-row"><span class="control-label">配色气质</span><div class="effect-options" role="group" aria-label="配色效果"><button data-effect="harmony" class="active" aria-pressed="true"><i class="effect-dot harmony"></i>和谐</button><button data-effect="impact" aria-pressed="false"><i class="effect-dot impact"></i>冲击</button><button data-effect="muted" aria-pressed="false"><i class="effect-dot muted"></i>低饱和</button><button data-effect="vivid" aria-pressed="false"><i class="effect-dot vivid"></i>高饱和</button><button data-effect="dark" aria-pressed="false"><i class="effect-dot dark"></i>暗调</button><button data-effect="light" aria-pressed="false"><i class="effect-dot light"></i>亮调</button><button data-effect="warm" aria-pressed="false" title="米杏、赭橙与暖红，保留锁定的基准色"><i class="effect-dot warm"></i>暖调</button><button data-effect="cool" aria-pressed="false" title="青蓝与灰紫，保留锁定的基准色"><i class="effect-dot cool"></i>冷调</button></div></div>
       </section>
 
@@ -129,7 +132,20 @@
 
   <dialog id="export-dialog" class="export-dialog" aria-labelledby="export-title"><div class="dialog-heading"><div><span class="eyebrow">TAKE YOUR COLORS WITH YOU</span><h2 id="export-title">把灵感带走</h2></div><button class="icon-button close-dialog" aria-label="关闭导出"><svg><use href="#i-close"/></svg></button></div><p id="export-description"></p><div class="export-options segmented" role="group" aria-label="导出格式"><button data-format="css" class="active" aria-pressed="true">CSS 变量</button><button data-format="json" aria-pressed="false">JSON</button><button data-format="svg" aria-pressed="false">SVG 色卡</button></div><pre id="export-preview" tabindex="0"></pre><div class="dialog-actions"><span id="export-file-label" class="mono"></span><div><button id="copy-export" class="secondary-button"><svg><use href="#i-copy"/></svg>复制</button><button id="download-export" class="primary-button"><svg><use href="#i-download"/></svg>下载文件</button></div></div></dialog>
 
-  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">A SMALL GUIDE</span><h2 id="help-title">好配色，从探索开始。</h2></div><button class="icon-button close-dialog" aria-label="关闭使用说明"><svg><use href="#i-close"/></svg></button></div><div class="help-content"><p><b>01 / 定义一种颜色</b>拖动色轮选择色相，在中心方块选择饱和度和明度；也可以输入 HEX，或切换 RGB、CMYK、HSB 数值。色轮支持方向键，HSB 与 HSV 含义相同。</p><p><b>02 / 决定相处的方式</b>选择 2–6 种颜色、色彩关系和配色气质。打开「保留基准色」，每组配色都会包含这个准确色值；其他颜色随气质变化。关闭后，基准色也会随风格微调。</p><p><b>03 / 放进真实的设计里</b>切换色卡、排版、渐变、界面预览。点击预览查看所有色值与文字对比度，点击小色块直接复制 HEX。按空格换一组，按 Esc 关闭弹窗。</p><p><b>04 / 带走你的灵感</b>收藏保存在当前设备、当前浏览器配置的本地缓存中（localStorage），不会上传服务器或 GitHub，其他使用者不可见。清理浏览器缓存、网站数据或站点存储，使用无痕窗口，或更换浏览器/设备，都可能让收藏消失；请先导出 CSS、JSON 或 SVG 留存。所有功能离线可用，不上传数据。</p><p class="help-footnote">CMYK 为无 ICC 色彩配置的屏幕近似换算；印刷前请根据纸张、油墨与印刷配置打样。推荐由色彩关系与明暗、饱和度规则生成，视觉预览帮助你做最后的判断。</p></div></dialog>
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-heading"><h2 id="help-title">使用说明</h2><button class="icon-button close-dialog" aria-label="关闭使用说明"><svg><use href="#i-close"/></svg></button></div>
+    <div class="help-content">
+      <p><b>选择颜色</b>左侧支持色轮、RGB、CMYK、HSB 和 HEX。拖动色轮外圈选色相，中心方块调整饱和度和明度；HEX 支持三位或六位输入。HSB 与 HSV 含义相同。聚焦色轮后用方向键调整，按住 Shift 每次调整 10°。</p>
+      <p><b>探索配色</b>选择 2–6 种颜色、色彩关系和配色气质。「保留基准色」打开时，每组包含准确的基准 HEX，气质只影响其他颜色；关闭后，基准色也可能调整。</p>
+      <p><b>自主配色</b>第一次使用时沿用探索页当前第一组配色，之后保留自己编辑的颜色。点击颜色选项卡，左侧选色面板便用于编辑该颜色，预览即时更新。下方「发现色彩的关系」跟随当前颜色，点击关联色即可应用到这个栏位。</p>
+      <p><b>交换顺序与保留颜色</b>把一张颜色选项卡拖到另一张上即可交换位置，鼠标和触屏均可使用。正在编辑的颜色随位置移动，当前预览中的对应两色也会互换。减少数量时保留前几色，隐藏栏位的色值不会清除；再次增加数量或刷新后仍可恢复。聚焦选项卡后按 Alt + ← / → 也可交换，拖到空白处或按 Esc 取消拖动。</p>
+      <p><b>预览与换组</b>可切换灵感、色卡、排版、渐变和界面。「换一组」替换为新的 12 组，「再发现 12 组」保留当前结果并追加。自主配色只打乱指定颜色的排列，不改变 HEX；预览、收藏和导出只包含当前启用的颜色。自主配色的排版预览按当前排列显示，可交换文字色与背景色。</p>
+      <p><b>详情、收藏与导出</b>点击卡片底部的小色块复制 HEX，点击大预览或箭头打开详情，查看色值和 WCAG 对比度。爱心用于收藏；已收藏的配色不随后续编辑改变。工具栏可将当前页配色导出为 CSS、JSON 或 SVG，详情中可导出单组 SVG。</p>
+      <p><b>键盘操作</b>在探索或自主配色页的空白处按 Space 换一组；输入框、按钮、色轮或弹窗有焦点时不触发。按 Esc 关闭弹窗，或取消拖动。</p>
+      <p><b>保存与隐私</b>收藏、选项和自主配色只保存在当前浏览器的本地存储中，不会上传服务器或 GitHub。不同设备、浏览器或文件地址可能使用不同的记录。清理网站数据或使用无痕窗口可能丢失记录，请先导出留存。浏览器禁止存储时仍可编辑和导出，但记录可能在刷新后丢失。</p>
+      <p class="help-footnote">所有功能可离线使用。导出采用实际显示的 sRGB 色值，渐变色卡保留原始端点色。CMYK 为无 ICC 配置的屏幕近似换算，印刷前请按目标纸张和印刷配置转换并打样。</p>
+    </div>
+  </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"><svg><use href="#i-check"/></svg><span></span></div>
   <script src="color-engine.js"></script>
   <script src="app.js"></script>

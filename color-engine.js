@@ -170,7 +170,20 @@
       return {id:colors.join('').replaceAll('#',''),colors,rule:currentRule,variant,effect,base:normalizeHex(base),serial:idx+1};
     });
   }
-  const api = {clamp,wrap,validHex,normalizeHex,hexToRgb,rgbToHex,rgbToHsv,hsvToRgb,rgbToCmyk,cmykToRgb,rgbToHsl,rgbToOklch,oklchToHex,contrast,textOn,related,generate,effectLabels,ruleLabels};
+  function generateCustom({colors, seed = 1, offset = 0, size = 12, previous = []}) {
+    const rnd = random(seed + offset * 113), orders = [];
+    function permute(prefix, remaining) {
+      if (!remaining.length) { orders.push(prefix); return; }
+      remaining.forEach((slot,i) => permute([...prefix,slot],remaining.filter((_,j) => i !== j)));
+    }
+    permute([],colors.map((_,i) => i));
+    const assignments = distribute(shuffle(orders.map((_,i) => i),rnd),size,previous.map(p => orders.findIndex(order => order.join() === p.slots?.join())),rnd);
+    return assignments.map((assignment,i) => {
+      const slots = orders[assignment], values = slots.map(slot => normalizeHex(colors[slot]));
+      return {id:values.join('').replaceAll('#',''), colors:values, slots, rule:'custom', effect:'custom', serial:offset+i+1};
+    });
+  }
+  const api = {clamp,wrap,validHex,normalizeHex,hexToRgb,rgbToHex,rgbToHsv,hsvToRgb,rgbToCmyk,cmykToRgb,rgbToHsl,rgbToOklch,oklchToHex,contrast,textOn,related,generate,generateCustom,effectLabels,ruleLabels};
   root.ColorEngine = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

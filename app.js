@@ -17,13 +17,22 @@
     lock:stored.lock !== false, view:['mixed','palette','type','gradient','ui'].includes(stored.view) ? stored.view : 'mixed',
     theme:['light','dark'].includes(stored.theme) ? stored.theme : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
     seed:1024, palettes:[], favorites:Array.isArray(stored.favorites) ? stored.favorites.filter(validPalette).map(({name, ...p}) => ({...p,colors:p.colors.map(C.normalizeHex),id:p.colors.map(C.normalizeHex).join('').replaceAll('#','')})) : [],
+    custom:{colors:validPalette(stored.custom) ? stored.custom.colors.map(C.normalizeHex) : [], count:0, active:0, hsv:[0,0,0], palettes:[]},
   };
+  state.custom.count=validPalette(stored.custom) ? ([2,3,4,5,6].includes(stored.custom.count) && stored.custom.count<=state.custom.colors.length ? stored.custom.count : state.custom.colors.length) : 0;
   state.hsv = C.rgbToHsv(C.hexToRgb(state.base));
+  const editor = {
+    get base() { return state.page==='custom' ? state.custom.colors[state.custom.active] : state.base; },
+    set base(hex) { if (state.page==='custom') state.custom.colors[state.custom.active]=hex; else state.base=hex; },
+    get hsv() { return state.page==='custom' ? state.custom.hsv : state.hsv; },
+    set hsv(hsv) { if (state.page==='custom') state.custom.hsv=hsv; else state.hsv=hsv; },
+  };
   let selectedPalette = null, exportFormat = 'css', exported = null, renderTimer = 0, toastTimer = 0, lastFocusedElement = null;
   let channelValues = [], channelMode = '', storageNoticeShown = false;
+  let customDrag = null, suppressCustomClick = false;
   function persist() {
     const {base,count,effect,rule,lock,view,theme,favorites} = state;
-    try { localStorage.setItem(STORAGE_KEY,JSON.stringify({base,count,effect,rule,lock,view,theme,favorites})); }
+    try { localStorage.setItem(STORAGE_KEY,JSON.stringify({base,count,effect,rule,lock,view,theme,favorites,custom:{colors:state.custom.colors,count:state.custom.count}})); }
     catch (_) { if (!storageNoticeShown) { toast('浏览器未允许本地保存，请导出收藏留存'); storageNoticeShown = true; } }
   }
   function toast(message) {
@@ -49,19 +58,28 @@
     setTimeout(() => URL.revokeObjectURL(url),1000); toast('已生成导出文件');
   }
   function syncControls() {
-    $$('[data-count]').forEach(b => { const active = +b.dataset.count === state.count; b.classList.toggle('active',active); b.setAttribute('aria-pressed',active); });
+    $$('[data-count]').forEach(b => { const active = +b.dataset.count === (state.page==='custom' ? state.custom.count : state.count); b.classList.toggle('active',active); b.setAttribute('aria-pressed',active); });
     $$('[data-effect]').forEach(b => { const active = b.dataset.effect === state.effect; b.classList.toggle('active',active); b.setAttribute('aria-pressed',active); });
     $$('[data-view]').forEach(b => { const active = b.dataset.view === state.view; b.classList.toggle('active',active); b.setAttribute('aria-pressed',active); });
     $('harmony-select').value = state.rule; $('lock-base').checked = state.lock;
   }
-  function regenerate({delay = false, previous = []} = {}) {
+  function regenerate({delay = false, previous = [], reshuffle = false} = {}) {
     clearTimeout(renderTimer);
+    if (state.page==='custom') {
+      renderTimer=0;
+      const custom=state.custom;
+      custom.palettes=reshuffle || !custom.palettes.length ? C.generateCustom({colors:custom.colors.slice(0,custom.count),seed:state.seed,previous}) : custom.palettes.map(p=>{
+        const colors=p.slots.map(slot=>custom.colors[slot]);
+        return {...p,colors,id:colors.join('').replaceAll('#','')};
+      });
+      renderCustomColors(); renderGallery(); persist(); return;
+    }
     const run = () => { renderTimer = 0; state.palettes = C.generate({...state, previous}); renderGallery(); persist(); };
     if (delay) renderTimer = setTimeout(run,100); else run();
   }
   function advanceSeed() { state.seed = (state.seed + 1 + Math.floor(Math.random()*1e9)) >>> 0; }
   function setBase(hex, hsv = null, delay = false) {
-    state.base = C.normalizeHex(hex); state.hsv = hsv || C.rgbToHsv(C.hexToRgb(state.base),state.hsv[0]);
+    editor.base = C.normalizeHex(hex); editor.hsv = hsv || C.rgbToHsv(C.hexToRgb(editor.base),editor.hsv[0]);
     $('hex-error').textContent = ''; $('hex-input').removeAttribute('aria-invalid');
     updatePicker(); renderRelated(); regenerate({delay});
   }
@@ -74,14 +92,14 @@
     }
   }
   function updatePicker() {
-    const [h,s,v] = state.hsv, radians = (h-90)*Math.PI/180;
+    const [h,s,v] = editor.hsv, radians = (h-90)*Math.PI/180;
     const marker = $('hue-marker'); marker.style.left = `${50+43.333*Math.cos(radians)}%`; marker.style.top = `${50+43.333*Math.sin(radians)}%`;
     marker.style.background = `hsl(${h},78%,66%)`; $('hue-wheel').setAttribute('aria-valuenow',Math.round(h));
     $('hue-wheel').setAttribute('aria-valuetext',`${Math.round(h)} 度`);
     $('sv-square').style.backgroundColor = `hsl(${h},100%,50%)`;
     $('sv-marker').style.left = `${s}%`; $('sv-marker').style.top = `${100-v}%`;
     $('summary-h').textContent = `${Math.round(h)}°`; $('summary-s').textContent = `${Math.round(s)}%`; $('summary-b').textContent = `${Math.round(v)}%`;
-    $('hex-input').value = state.base; $('native-color').value = state.base.toLowerCase();
+    $('hex-input').value = editor.base; $('native-color').value = editor.base.toLowerCase();
     if (state.picker !== 'wheel') updateChannels();
   }
   function bindPointer(element, update) {
@@ -96,18 +114,18 @@
   }
   bindPointer($('hue-wheel'),event => {
     const r = $('hue-wheel').getBoundingClientRect(), dx = event.clientX-r.left-r.width/2, dy = event.clientY-r.top-r.height/2;
-    const h = C.wrap(Math.atan2(dy,dx)*180/Math.PI+90), hsv = [h,state.hsv[1],state.hsv[2]];
+    const h = C.wrap(Math.atan2(dy,dx)*180/Math.PI+90), hsv = [h,editor.hsv[1],editor.hsv[2]];
     setBase(C.rgbToHex(C.hsvToRgb(hsv)),hsv,true);
   });
   bindPointer($('sv-square'),event => {
     const r = $('sv-square').getBoundingClientRect();
-    const hsv = [state.hsv[0],C.clamp((event.clientX-r.left)/r.width)*100,(1-C.clamp((event.clientY-r.top)/r.height))*100];
+    const hsv = [editor.hsv[0],C.clamp((event.clientX-r.left)/r.width)*100,(1-C.clamp((event.clientY-r.top)/r.height))*100];
     setBase(C.rgbToHex(C.hsvToRgb(hsv)),hsv,true);
   });
   $('hue-wheel').addEventListener('keydown',event => {
     const direction = {ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[event.key];
     if (!direction) return;
-    event.preventDefault(); const hsv = [C.wrap(state.hsv[0]+direction*(event.shiftKey ? 10 : 1)),state.hsv[1],state.hsv[2]];
+    event.preventDefault(); const hsv = [C.wrap(editor.hsv[0]+direction*(event.shiftKey ? 10 : 1)),editor.hsv[1],editor.hsv[2]];
     setBase(C.rgbToHex(C.hsvToRgb(hsv)),hsv);
   });
   const channelConfigs = {
@@ -126,8 +144,8 @@
         const i = +input.dataset.channel; channelValues[i] = C.clamp(input.valueAsNumber,0,config[i][2]);
         const values = [...channelValues];
         const rgb = state.picker === 'rgb' ? values : state.picker === 'cmyk' ? C.cmykToRgb(values) : C.hsvToRgb(values);
-        const hsv = state.picker === 'hsv' ? [C.wrap(values[0]),values[1],values[2]] : C.rgbToHsv(rgb,state.hsv[0]);
-        state.base = C.rgbToHex(rgb); state.hsv = hsv;
+        const hsv = state.picker === 'hsv' ? [C.wrap(values[0]),values[1],values[2]] : C.rgbToHsv(rgb,editor.hsv[0]);
+        editor.base = C.rgbToHex(rgb); editor.hsv = hsv;
         // Keep the user's CMYK decomposition (black generation is not unique).
         updatePickerFromChannel(input); renderRelated(); regenerate({delay:input.type==='range'});
       });
@@ -142,8 +160,8 @@
   }
   function updateChannels(source = null, retain = false) {
     if (channelMode !== state.picker || !retain) {
-      const rgb = C.hexToRgb(state.base);
-      channelValues = state.picker === 'rgb' ? rgb : state.picker === 'cmyk' ? C.rgbToCmyk(rgb) : [...state.hsv];
+      const rgb = C.hexToRgb(editor.base);
+      channelValues = state.picker === 'rgb' ? rgb : state.picker === 'cmyk' ? C.rgbToCmyk(rgb) : [...editor.hsv];
       channelMode = state.picker;
     }
     const config = channelConfigs[state.picker]; if (!config) return;
@@ -159,10 +177,11 @@
     });
   }
   function renderRelated() {
-    const colors = C.related(state.base,state.relation);
-    $('related-colors').innerHTML = colors.map(hex => `<button class="related-swatch ${hex===state.base?'is-base':''}" style="background:${hex};color:${C.textOn(hex)}" data-related="${hex}" title="${hex} · 设为基准色" aria-label="将关联色 ${hex} 设为基准色"></button>`).join('');
+    const colors = C.related(editor.base,state.relation), action=state.page==='custom'?'用于当前颜色':'设为基准色';
+    $('related-colors').innerHTML = colors.map(hex => `<button class="related-swatch ${hex===editor.base?'is-base':''}" style="background:${hex};color:${C.textOn(hex)}" data-related="${hex}" title="${hex} · ${action}" aria-label="将关联色 ${hex} ${action}"></button>`).join('');
     const descriptions = {analogous:'相近色相的细微变化，让色彩自然地连接。',complement:'色轮另一侧的呼应，在对照中找到平衡。',triadic:'三个方向的色相，让画面丰富而有节奏。',tonal:'同一色彩的明暗层次，建立安静的秩序。'};
     $('relation-description').textContent = descriptions[state.relation];
+    document.querySelector('.micro-note').innerHTML=(state.page==='custom'?'点击色块，应用到当前颜色':'点击色块，开启新的色彩探索')+' <span>↗</span>';
   }
   function bestPair(colors) {
     let best = [0,1], ratio = 0;
@@ -172,7 +191,7 @@
   function previewType(index) { return state.view === 'mixed' ? ['type','poster','gradient','ui','type','poster'][index%6] : state.view; }
   function previewHtml(palette,type,index=0) {
     const colors = [...palette.colors];
-    if (type==='type') { const pair=bestPair(colors), a=colors[pair[0]], b=colors[pair[1]]; colors.splice(0,colors.length,a,b,...palette.colors.filter((_,i)=>!pair.includes(i))); }
+    if (type==='type' && palette.rule!=='custom') { const pair=bestPair(colors), a=colors[pair[0]], b=colors[pair[1]]; colors.splice(0,colors.length,a,b,...palette.colors.filter((_,i)=>!pair.includes(i))); }
     while (colors.length<5) colors.push(colors[colors.length%palette.colors.length]);
     const vars = colors.map((hex,i) => `--p${i}:${hex};--pt${i}:${C.textOn(hex)}`).join(';');
     if (type==='palette') return `<div class="preview preview-palette" style="${vars}">${palette.colors.map((hex,i)=>`<div style="background:${hex};color:${C.textOn(hex)}">0${i+1}</div>`).join('')}</div>`;
@@ -183,15 +202,93 @@
     return `<div class="preview preview-type" style="${vars}"><span class="preview-label">COLOR IS A WAY OF SEEING</span><div class="preview-big">${titles[0]}<span>${titles[1]}</span></div><span class="preview-foot">A SMALL STUDY IN BEAUTIFUL POSSIBILITIES.</span><span class="type-index">${String(index+1).padStart(2,'0')} ↗</span></div>`;
   }
   const isSaved = id => state.favorites.some(p => p.id === id);
-  function visiblePalettes() { return state.page==='favorites' ? state.favorites : state.palettes; }
+  function renderCustomColors() {
+    const {active,count}=state.custom, colors=state.custom.colors.slice(0,count), container=$('custom-colors');
+    if (container.children.length!==colors.length) container.innerHTML=colors.map((_,i)=>`<button class="custom-color" data-custom-color="${i}" aria-controls="picker-panel" aria-describedby="custom-order-hint" aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" title="拖动到另一颜色以交换位置；Alt + 左右方向键调整"><span></span><b></b></button>`).join('');
+    [...container.children].forEach((button,i)=>{
+      button.style.background=colors[i]; button.style.color=C.textOn(colors[i]);
+      button.classList.toggle('active',i===active); button.setAttribute('aria-pressed',i===active);
+      button.setAttribute('aria-label',`编辑颜色 ${i+1}，${colors[i]}`);
+      button.querySelector('span').textContent=`颜色 ${i+1}`; button.querySelector('b').textContent=colors[i];
+    });
+    $('custom-editing').textContent=`正在编辑颜色 ${active+1} · 使用选色面板调整`;
+    $('picker-title').textContent=`编辑颜色 ${active+1}`;
+  }
+  function selectCustomColor(index) {
+    state.custom.active=index;
+    state.custom.hsv=C.rgbToHsv(C.hexToRgb(editor.base));
+    $('hex-error').textContent=''; $('hex-input').removeAttribute('aria-invalid');
+    updatePicker(); renderRelated(); renderCustomColors();
+  }
+  function swapCustomColors(from,to) {
+    const custom=state.custom;
+    if(from===to || from<0 || to<0 || from>=custom.count || to>=custom.count)return;
+    [custom.colors[from],custom.colors[to]]=[custom.colors[to],custom.colors[from]];
+    if(custom.active===from)custom.active=to;
+    else if(custom.active===to)custom.active=from;
+    selectCustomColor(custom.active);regenerate();
+    $('custom-colors').children[to].focus({preventScroll:true});
+    toast(`已交换颜色 ${from+1} 与颜色 ${to+1}`);
+  }
+  function finishCustomDrag(commit=false) {
+    const drag=customDrag;if(!drag)return;
+    customDrag=null;
+    drag.ghost?.remove();
+    $$('[data-custom-color]').forEach(button=>button.classList.remove('is-dragging','is-drop-target'));
+    if(drag.button.hasPointerCapture(drag.pointerId))drag.button.releasePointerCapture(drag.pointerId);
+    if(drag.moved) {
+      // The click following pointerup must not select the old slot after a swap.
+      suppressCustomClick=true;setTimeout(()=>{suppressCustomClick=false;},0);
+      if(commit && drag.target!==null)swapCustomColors(drag.from,drag.target);
+    }
+  }
+  const customColors=$('custom-colors');
+  customColors.addEventListener('pointerdown',event=>{
+    const button=event.target.closest('[data-custom-color]');
+    if(!button || state.page!=='custom' || event.button!==0 || !event.isPrimary || customDrag)return;
+    const rect=button.getBoundingClientRect();
+    customDrag={button,pointerId:event.pointerId,from:+button.dataset.customColor,target:null,x:event.clientX,y:event.clientY,dx:event.clientX-rect.left,dy:event.clientY-rect.top,moved:false,ghost:null};
+    button.setPointerCapture(event.pointerId);
+  });
+  customColors.addEventListener('pointermove',event=>{
+    const drag=customDrag;if(!drag || drag.pointerId!==event.pointerId)return;
+    if(!drag.moved && Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<6)return;
+    event.preventDefault();
+    if(!drag.moved) {
+      drag.moved=true;
+      const rect=drag.button.getBoundingClientRect();
+      drag.ghost=drag.button.cloneNode(true);drag.ghost.removeAttribute('data-custom-color');
+      drag.ghost.removeAttribute('aria-describedby');drag.ghost.removeAttribute('aria-controls');
+      drag.ghost.setAttribute('aria-hidden','true');drag.ghost.tabIndex=-1;
+      drag.ghost.classList.add('custom-drag-ghost');drag.ghost.style.width=`${rect.width}px`;drag.ghost.style.height=`${rect.height}px`;
+      document.body.appendChild(drag.ghost);drag.button.classList.add('is-dragging');
+    }
+    drag.ghost.style.left=`${event.clientX-drag.dx}px`;drag.ghost.style.top=`${event.clientY-drag.dy}px`;
+    const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-custom-color]');
+    drag.target=target && customColors.contains(target) ? +target.dataset.customColor : null;
+    [...customColors.children].forEach(button=>button.classList.toggle('is-drop-target',+button.dataset.customColor===drag.target && drag.target!==drag.from));
+  });
+  customColors.addEventListener('pointerup',event=>{if(customDrag?.pointerId===event.pointerId)finishCustomDrag(true);});
+  customColors.addEventListener('pointercancel',()=>finishCustomDrag());
+  customColors.addEventListener('lostpointercapture',()=>finishCustomDrag());
+  customColors.addEventListener('click',event=>{if(suppressCustomClick){event.preventDefault();event.stopPropagation();}},true);
+  customColors.addEventListener('dragstart',event=>event.preventDefault());
+  customColors.addEventListener('keydown',event=>{
+    const button=event.target.closest('[data-custom-color]');
+    if(!button || !event.altKey || !['ArrowLeft','ArrowRight'].includes(event.key))return;
+    event.preventDefault();finishCustomDrag();
+    const from=+button.dataset.customColor;swapCustomColors(from,from+(event.key==='ArrowRight'?1:-1));
+  });
+  document.addEventListener('keydown',event=>{if(event.key==='Escape' && customDrag){event.preventDefault();finishCustomDrag();}});
+  function visiblePalettes() { return state.page==='favorites' ? state.favorites : state.page==='custom' ? state.custom.palettes : state.palettes; }
   function renderGallery() {
     const palettes = visiblePalettes();
-    $('palette-grid').innerHTML = palettes.map((p,i) => `<article class="palette-card" style="animation-delay:${Math.min(i,11)*18}ms"><button class="card-art" data-detail="${p.id}" aria-label="查看配色 ${i+1} 详情">${previewHtml(p,previewType(i),i)}</button><button class="favorite-button ${isSaved(p.id)?'saved':''}" data-save="${p.id}" aria-label="${isSaved(p.id)?'取消收藏':'收藏'}配色 ${i+1}" aria-pressed="${isSaved(p.id)}" title="${isSaved(p.id)?'取消收藏':'收藏配色'}">${icon('heart')}</button><div class="palette-strip">${p.colors.map(hex => `<button style="background:${hex};color:${C.textOn(hex)}" data-copy="${hex}" title="复制 ${hex}" aria-label="复制颜色 ${hex}"><span>${hex}</span></button>`).join('')}</div><div class="card-meta"><span class="card-number">${String(i+1).padStart(2,'0')}</span><button data-detail="${p.id}" aria-label="查看配色 ${i+1} 详情"><span>${C.ruleLabels[p.rule]||'自由配色'}</span>${icon('arrow')}</button></div></article>`).join('');
+    $('palette-grid').innerHTML = palettes.map((p,i) => `<article class="palette-card" style="animation-delay:${Math.min(i,11)*18}ms"><button class="card-art" data-detail="${i}" aria-label="查看配色 ${i+1} 详情">${previewHtml(p,previewType(i),i)}</button><button class="favorite-button ${isSaved(p.id)?'saved':''}" data-save="${i}" aria-label="${isSaved(p.id)?'取消收藏':'收藏'}配色 ${i+1}" aria-pressed="${isSaved(p.id)}" title="${isSaved(p.id)?'取消收藏':'收藏配色'}">${icon('heart')}</button><div class="palette-strip">${p.colors.map(hex => `<button style="background:${hex};color:${C.textOn(hex)}" data-copy="${hex}" title="复制 ${hex}" aria-label="复制颜色 ${hex}"><span>${hex}</span></button>`).join('')}</div><div class="card-meta"><span class="card-number">${String(i+1).padStart(2,'0')}</span><button data-detail="${i}" aria-label="查看配色 ${i+1} 详情"><span>${C.ruleLabels[p.rule]||'自由配色'}</span>${icon('arrow')}</button></div></article>`).join('');
     $('favorite-count').textContent = state.favorites.length;
     $('empty-state').hidden = palettes.length>0 || state.page!=='favorites';
     $('load-more').hidden = state.page==='favorites';
-    $('collection-description').textContent = state.page==='favorites' ? `已收藏的 ${palettes.length} 组灵感` : `为你发现的 ${palettes.length} 组配色`;
-    $('generation-label').textContent = state.page==='favorites' ? 'KEEP WHAT MOVES YOU.' : 'CURATED BY COLOR, MADE FOR YOU.';
+    $('collection-description').textContent = state.page==='favorites' ? `已收藏的 ${palettes.length} 组灵感` : state.page==='custom' ? `用指定颜色搭配的 ${palettes.length} 组配色` : `为你发现的 ${palettes.length} 组配色`;
+    $('generation-label').textContent = state.page==='favorites' ? 'KEEP WHAT MOVES YOU.' : state.page==='custom' ? 'YOUR COLORS, NEW POSSIBILITIES.' : 'CURATED BY COLOR, MADE FOR YOU.';
     $('export-button').disabled = palettes.length===0;
   }
   function toggleFavorite(palette) {
@@ -200,13 +297,31 @@
     persist(); renderGallery(); syncDetailSave();
   }
   function setPage(page) {
+    finishCustomDrag();
+    if (renderTimer) regenerate();
     state.page=page;
+    const custom=page==='custom';
+    document.body.classList.toggle('custom-page',custom);
     $$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
-    $('page-title').innerHTML=page==='favorites' ? '把喜欢的，<span>留在这里。</span>' : '让色彩，<span>恰好相遇。</span>';
-    $('page-description').textContent=page==='favorites' ? '一些让你心动的色彩，等待成为下一次创作。' : '从一抹灵感出发，探索属于你的色彩秩序。';
-    // Saved palettes are shown exactly as collected; generation settings belong to Explore.
+    $('page-title').innerHTML=page==='favorites' ? '把喜欢的，<span>留在这里。</span>' : custom ? '让配色，<span>由你决定。</span>' : '让色彩，<span>恰好相遇。</span>';
+    $('page-description').textContent=page==='favorites' ? '一些让你心动的色彩，等待成为下一次创作。' : custom ? '指定每一种颜色，看看它们在设计中的不同可能。' : '从一抹灵感出发，探索属于你的色彩秩序。';
     document.querySelector('.generator-controls').hidden=page==='favorites';
     $('generate-button').hidden=page==='favorites';
+    $('custom-controls').hidden=!custom;
+    document.querySelector('.rule-select-wrap').hidden=custom;
+    document.querySelector('.effects-row').hidden=custom;
+    $('picker-title').textContent='从一个颜色开始';
+    $('random-color').setAttribute('aria-label',custom?'随机当前颜色':'随机基准色');
+    $('random-color').title=custom?'随机当前颜色':'随机基准色';
+    $('copy-base').setAttribute('aria-label',custom?'复制当前颜色':'复制基准色');
+    $('palette-grid').setAttribute('aria-label',custom?'自主配色预览':page==='favorites'?'收藏配色':'推荐配色');
+    if (custom) {
+      if (!state.custom.colors.length) { state.custom.colors=[...state.palettes[0].colors]; state.custom.count=state.custom.colors.length; }
+      selectCustomColor(state.custom.active);
+      if (!state.custom.palettes.length) regenerate();
+    }
+    syncControls(); updatePicker(); renderRelated();
+    $('hex-error').textContent=''; $('hex-input').removeAttribute('aria-invalid');
     renderGallery();
   }
   function openDialog(dialog) { lastFocusedElement=document.activeElement; dialog.showModal(); dialog.scrollTop=0; }
@@ -217,12 +332,12 @@
     $('detail-save').classList.toggle('saved',saved); $('detail-save').setAttribute('aria-pressed',saved);
   }
   function showDetail(palette,index=0) {
-    selectedPalette=palette; $('detail-name').textContent=`配色 / ${String(index+1).padStart(2,'0')}`;
+    selectedPalette={...palette,serial:index+1}; $('detail-name').textContent=`配色 / ${String(index+1).padStart(2,'0')}`;
     $('detail-preview').innerHTML=previewHtml(palette,previewType(index),index);
     $('detail-colors').style.setProperty('--count',palette.colors.length);
     $('detail-colors').innerHTML=palette.colors.map(hex=>{
       const rgb=C.hexToRgb(hex), hsl=C.rgbToHsl(rgb).map(Math.round), cmyk=C.rgbToCmyk(rgb).map(Math.round);
-      return `<div class="detail-color"><div class="color-sample" style="background:${hex};color:${C.textOn(hex)}"><button class="icon-button" data-copy="${hex}" aria-label="复制 ${hex}">${icon('copy')}</button></div><button class="color-code" data-copy="${hex}" title="复制色值">${hex}</button><p>RGB ${rgb.join(' ')}\nHSL ${hsl[0]} ${hsl[1]} ${hsl[2]}\nCMYK ${cmyk.join(' ')}</p><button class="base-this" data-base="${hex}" aria-label="将 ${hex} 设为基准色">设为基准色 ↗</button></div>`;
+      return `<div class="detail-color"><div class="color-sample" style="background:${hex};color:${C.textOn(hex)}"><button class="icon-button" data-copy="${hex}" aria-label="复制 ${hex}">${icon('copy')}</button></div><button class="color-code" data-copy="${hex}" title="复制色值">${hex}</button><p>RGB ${rgb.join(' ')}\nHSL ${hsl[0]} ${hsl[1]} ${hsl[2]}\nCMYK ${cmyk.join(' ')}</p><button class="base-this" data-base="${hex}" aria-label="${state.page==='custom'?'将 '+hex+' 用于当前颜色':'将 '+hex+' 设为基准色'}">${state.page==='custom'?'用于当前颜色':'设为基准色'} ↗</button></div>`;
     }).join('');
     const options=palette.colors.map((hex,i)=>`<option value="${i}">${String(i+1).padStart(2,'0')} / ${hex}</option>`).join('');
     $('contrast-foreground').innerHTML=options; $('contrast-background').innerHTML=options;
@@ -236,11 +351,11 @@
     $('contrast-ratio').textContent=`${ratio.toFixed(2)}:1`;
     $('contrast-badges').innerHTML=[['普通字 AA',4.5],['普通字 AAA',7],['大字 AA',3]].map(([label,min])=>`<span class="contrast-badge ${ratio>=min?'pass':'fail'}">${ratio>=min?'✓':'×'} ${label}</span>`).join('');
   }
-  function svgExport(palettes) {
+  function svgExport(palettes,start=0) {
     const width=900,rowHeight=190,height=68+palettes.length*rowHeight+36;
     const rows=palettes.map((p,index)=>{
       const y=78+index*rowHeight,sw=(width-80)/p.colors.length;
-      return `<g><text x="40" y="${y}" font-size="13" fill="#555">PALETTE / ${String(index+1).padStart(2,'0')}</text>${p.colors.map((hex,i)=>`<rect x="${40+i*sw}" y="${y+14}" width="${sw+.2}" height="110" fill="${hex}"/><text x="${40+i*sw+12}" y="${y+110}" font-family="monospace" font-size="12" fill="${C.textOn(hex)}">${hex}</text>`).join('')}</g>`;
+      return `<g><text x="40" y="${y}" font-size="13" fill="#555">PALETTE / ${String(start+index+1).padStart(2,'0')}</text>${p.colors.map((hex,i)=>`<rect x="${40+i*sw}" y="${y+14}" width="${sw+.2}" height="110" fill="${hex}"/><text x="${40+i*sw+12}" y="${y+110}" font-family="monospace" font-size="12" fill="${C.textOn(hex)}">${hex}</text>`).join('')}</g>`;
     }).join('\n');
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#F7F7F5"/><g font-family="Segoe UI,Microsoft YaHei,sans-serif"><text x="40" y="35" font-size="18" font-weight="600" fill="#292B2C">chroma. / 色彩实验室</text>${rows}<text x="40" y="${height-22}" font-size="9" fill="#888">A LITTLE SCIENCE. A LOT OF FEELING.</text></g></svg>`;
   }
@@ -261,11 +376,12 @@
 
   // Events are delegated for regenerated card and swatch elements.
   document.addEventListener('click',event=>{
+    const customColor=event.target.closest('[data-custom-color]'); if (customColor) { selectCustomColor(+customColor.dataset.customColor); return; }
     const copyButton=event.target.closest('[data-copy]'); if (copyButton) { copy(copyButton.dataset.copy,`已复制 ${copyButton.dataset.copy}`); return; }
-    const detail=event.target.closest('[data-detail]'); if (detail) { const palettes=visiblePalettes(),index=palettes.findIndex(p=>p.id===detail.dataset.detail); if(index>=0) showDetail(palettes[index],index); return; }
-    const save=event.target.closest('[data-save]'); if (save) { const p=visiblePalettes().find(p=>p.id===save.dataset.save); if(p) toggleFavorite(p); return; }
+    const detail=event.target.closest('[data-detail]'); if (detail) { const index=+detail.dataset.detail, p=visiblePalettes()[index]; if(p) showDetail(p,index); return; }
+    const save=event.target.closest('[data-save]'); if (save) { const p=visiblePalettes()[+save.dataset.save]; if(p) toggleFavorite(p); return; }
     const related=event.target.closest('[data-related]'); if (related) {setBase(related.dataset.related);return;}
-    const base=event.target.closest('[data-base]'); if(base) {setBase(base.dataset.base);closeDialog($('palette-dialog'));setPage('explore');toast('已设为基准色');}
+    const base=event.target.closest('[data-base]'); if(base) {const custom=state.page==='custom';if(!custom)setPage('explore');setBase(base.dataset.base);closeDialog($('palette-dialog'));toast(custom?'已用于当前颜色':'已设为基准色');}
   });
   $$('[data-picker]').forEach(button=>button.addEventListener('click',()=>{
     state.picker=button.dataset.picker;
@@ -286,7 +402,19 @@
   $$('[data-relation]').forEach(button=>button.addEventListener('click',()=>{
     state.relation=button.dataset.relation;$$('[data-relation]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active);});renderRelated();
   }));
-  $$('[data-count]').forEach(button=>button.addEventListener('click',()=>{state.count=+button.dataset.count;syncControls();regenerate();}));
+  $$('[data-count]').forEach(button=>button.addEventListener('click',()=>{
+    finishCustomDrag();
+    const count=+button.dataset.count;
+    if(state.page==='custom') {
+      const custom=state.custom;
+      if(count===custom.count)return;
+      const defaults=state.palettes[0].colors;
+      while(custom.colors.length<count)custom.colors.push(defaults[custom.colors.length] || defaults[custom.colors.length%defaults.length]);
+      custom.count=count;custom.active=Math.min(custom.active,count-1);custom.palettes=[];
+      selectCustomColor(custom.active);
+    } else state.count=count;
+    syncControls();regenerate();
+  }));
   $$('[data-effect]').forEach(button=>button.addEventListener('click',()=>{state.effect=button.dataset.effect;syncControls();regenerate();}));
   $$('[data-view]').forEach(button=>button.addEventListener('click',()=>{state.view=button.dataset.view;syncControls();renderGallery();persist();}));
   $$('[data-page]').forEach(button=>button.addEventListener('click',()=>setPage(button.dataset.page)));
@@ -302,13 +430,18 @@
   $('hex-input').addEventListener('keydown',event=>{if(event.key==='Enter')$('hex-input').blur();});
   $('native-color').addEventListener('input',()=>setBase($('native-color').value,null,true));
   $('native-color').addEventListener('change',()=>regenerate());
-  $('copy-base').addEventListener('click',()=>copy(state.base,`已复制 ${state.base}`));
+  $('copy-base').addEventListener('click',()=>copy(editor.base,`已复制 ${editor.base}`));
   $('random-color').addEventListener('click',()=>setBase(C.oklchToHex([.42+Math.random()*.35,.05+Math.random()*.15,Math.random()*360])));
   $('generate-button').addEventListener('click',()=>{
-    const previous=state.palettes.slice(0,12);advanceSeed();regenerate({previous});
+    const previous=visiblePalettes().slice(0,12);advanceSeed();regenerate({previous,reshuffle:true});
   });
   $('load-more').addEventListener('click',()=>{
     if(renderTimer)regenerate();
+    if(state.page==='custom') {
+      const custom=state.custom;advanceSeed();
+      custom.palettes.push(...C.generateCustom({colors:custom.colors.slice(0,custom.count),seed:state.seed,offset:custom.palettes.length,previous:custom.palettes.slice(-12)}));
+      renderGallery();return;
+    }
     const previous=state.palettes.slice(-12);advanceSeed();
     state.palettes=[...state.palettes,...C.generate({...state,offset:state.palettes.length,previous})];renderGallery();
   });
@@ -322,7 +455,7 @@
   $('swap-contrast').addEventListener('click',()=>{const a=$('contrast-foreground').value;$('contrast-foreground').value=$('contrast-background').value;$('contrast-background').value=a;updateContrast();});
   $('detail-save').addEventListener('click',()=>{if(selectedPalette)toggleFavorite(selectedPalette);});
   $('detail-copy').addEventListener('click',()=>{if(selectedPalette)copy(selectedPalette.colors.join(', '),'已复制整组色值');});
-  $('detail-svg').addEventListener('click',()=>{if(selectedPalette)download(svgExport([selectedPalette]),'chroma-palette.svg','image/svg+xml;charset=utf-8');});
+  $('detail-svg').addEventListener('click',()=>{if(selectedPalette)download(svgExport([selectedPalette],selectedPalette.serial-1),'chroma-palette.svg','image/svg+xml;charset=utf-8');});
   $('export-button').addEventListener('click',()=>{
     $('export-description').textContent=`导出${state.page==='favorites'?'收藏的':'当前展示的'} ${visiblePalettes().length} 组配色。色值采用 sRGB，SVG 可在设计软件中继续编辑。`;
     renderExport();openDialog($('export-dialog'));
@@ -332,7 +465,7 @@
   $('download-export').addEventListener('click',()=>{if(exported)download(exported.text,exported.filename,exported.type);});
   document.addEventListener('keydown',event=>{
     const interactive=event.target.closest('input,textarea,select,button,a,[contenteditable="true"],[role="slider"]');
-    if(event.code==='Space'&&!event.repeat&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!interactive&&!$$('dialog[open]').length&&state.page==='explore'){
+    if(event.code==='Space'&&!event.repeat&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!interactive&&!$$('dialog[open]').length&&state.page!=='favorites'){
       event.preventDefault();$('generate-button').click();
     }
   });
