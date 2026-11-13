@@ -139,6 +139,13 @@ const { pathToFileURL } = require('node:url');
     await page.locator('#theme-button').click();
     await page.screenshot({path:path.join(screenshotDir,'custom-dark.png')});
     await page.setViewportSize({width:390,height:1000});
+    for(const width of [320,360,390,430,520]) {
+      await page.setViewportSize({width,height:1000});
+      const tab=await page.locator('[data-page="custom"]').boundingBox();
+      assert.ok(Math.abs(tab.x+tab.width/2-width/2)<1,`Custom tab must be centered at ${width}px`);
+      await noOverflow();
+    }
+    await page.setViewportSize({width:390,height:1000});
     const heading=await page.locator('.custom-heading').boundingBox();
     assert.ok(heading.height<60,'Mobile editing hint should fit in two lines');
     await noOverflow();await page.screenshot({path:path.join(screenshotDir,'custom-mobile.png')});
